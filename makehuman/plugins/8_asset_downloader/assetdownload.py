@@ -234,6 +234,7 @@ class AssetDownloadTaskView(gui3d.TaskView):
         self.proxymodel = QSortFilterProxyModel()
         self.proxymodel.setSourceModel(self.model)
         self.tableView.setModel(self.proxymodel)
+        self.tableView.selectionModel().selectionChanged.connect(self._tableSelectionChanged)
 
         self.tableView.columnCountChanged(oldlen, len(self.headers))
         self.tableView.resizeColumnsToContents()
@@ -395,7 +396,7 @@ class AssetDownloadTaskView(gui3d.TaskView):
 
         self.tableView = QTableView()
         self.tableView.setModel(self.model)
-        self.tableView.clicked.connect(self._tableClick)
+        self.tableView.selectionModel().selectionChanged.connect(self._tableSelectionChanged)
         self.tableView.setSelectionBehavior(QTableView.SelectRows)
         if(mhapi.utility.isPython3()):
             selmode = QtWidgets.QAbstractItemView.SingleSelection
@@ -468,9 +469,8 @@ class AssetDownloadTaskView(gui3d.TaskView):
         self.addTopWidget(self.detailsPanel)
         self.detailsPanel.hide()
 
-    def _tableClick(self):
-
-        self.log.trace("Table click")
+    def _tableSelectionChanged(self,selected,deselected):
+        self.log.trace("Table SelectionChanged")
 
         if not self.hasFilter:
             return
