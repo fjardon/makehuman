@@ -275,6 +275,19 @@ class AssetDownloadTaskView(gui3d.TaskView):
         def onClicked(event):
             self._onBtnDownloadClick()
 
+        self.btnCancelDownloads = mhapi.ui.createButton("Cancel Downloads")
+        self.selectBox.addWidget(self.btnCancelDownloads)
+        self.btnCancelDownloads.hide()
+
+        @self.btnCancelDownloads.mhEvent
+        def onClicked(event):
+            self._onBtnCancelDownloadsClicked()
+
+        self.downloadsProgressBar = gui.ProgressBar()
+        self.selectBox.addWidget(self.downloadsProgressBar)
+        self.downloadsProgressBar.setProgress(0)
+        self.downloadsProgressBar.hide()
+
         self.addRightWidget(self.selectBox)
 
     def _onBtnDetailsClick(self):
@@ -299,8 +312,13 @@ class AssetDownloadTaskView(gui3d.TaskView):
         self.btnDetails.setText("Hide details")
         self.isShowingDetails = True
 
+    def _onBtnCancelDownloadsClicked(self):
+        self.isDownloadCanceled = True
+
     def _onBtnDownloadClick(self):
         self.log.trace("Enter")
+
+        self.isDownloadCanceled = False
 
         if not self.assetdb or not self.assetdb.isSynchronized:
             self.log.debug("Database has not been synchronized")
@@ -309,25 +327,52 @@ class AssetDownloadTaskView(gui3d.TaskView):
         if not self.hasFilter:
             self.log.debug("Table is empty")
 
-        if 0 == len(self.currentlySelectedRemoteAsset):
+        nbDownloads = len(self.currentlySelectedRemoteAsset)
+        if 0 == nbDownloads:
             self.log.debug("No asset is selected")
             return
+
+        self.btnDownload.hide()
 
         titles = ', '.join([asset.getTitle() for asset in self.currentlySelectedRemoteAsset])
         self.log.debug("Request download of asset with title",titles)
 
-        # TODO: [multi-asset-selection] hard-coded references to selected asset 'head'.
-        self.assetdb.downloadItem(self.syncBox, self.currentlySelectedRemoteAsset[0], self._downloadItemFinished)
+        self._downloadItems(nbDownloads, self.currentlySelectedRemoteAsset)
 
-    def _downloadItemFinished(self, code=0, file=None):
-        if code > 0:
-            msg = "The requested item failed to download. The server responded with the error code " + str(code) \
-                    + " when trying to download " + str(file) + ".\n\nThis is an indication that there is something wrong " \
-                    + "with the asset on the server, and it should probably be reported to the author of the asset, " \
-                    + "possibly as a comment on the asset page."
-            self.showMessage(msg)
+    def _downloadItems(self, nbDownloads, toDownloads):
+        nbRemainingDownloads = len(toDownloads)
+        if nbDownloads > 1:
+            self.btnCancelDownloads.show()
+            self.downloadsProgressBar.show()
+            self.downloadsProgressBar.setProgress(float(nbDownloads - nbRemainingDownloads)/nbDownloads)
         else:
-            self.showMessage("Finished downloading")
+            self.btnCancelDownloads.hide()
+            self.downloadsProgressBar.hide()
+
+        if 0 == nbRemainingDownloads or self.isDownloadCanceled:
+            self.isDownloadCanceled = False
+            self.btnCancelDownloads.hide()
+            self.btnDownload.show()
+            if 0 == nbRemainingDownloads:
+                self.showMessage("Finished downloading")
+            else:
+                self.showMessage("Canceled downloading")
+            return
+
+        nextDownloads = toDownloads[1:]
+        def onDownloadItemFinished(code = 0, file = None):
+            if code > 0:
+                self.isDownloadCanceled = False
+                self.btnCancelDownloads.hide()
+                self.btnDownload.show()
+                msg = "The requested item failed to download. The server responded with the error code " + str(code) \
+                        + " when trying to download " + str(file) + ".\n\nThis is an indication that there is something wrong " \
+                        + "with the asset on the server, and it should probably be reported to the author of the asset, " \
+                        + "possibly as a comment on the asset page."
+                self.showMessage(msg)
+            else:
+                self._downloadItems(nbDownloads, nextDownloads)
+        self.assetdb.downloadItem(self.syncBox, toDownloads[0], onDownloadItemFinished)
 
     def _setupSyncBox(self):
         self.log.trace("Enter")
@@ -399,9 +444,9 @@ class AssetDownloadTaskView(gui3d.TaskView):
         self.tableView.selectionModel().selectionChanged.connect(self._tableSelectionChanged)
         self.tableView.setSelectionBehavior(QTableView.SelectRows)
         if(mhapi.utility.isPython3()):
-            selmode = QtWidgets.QAbstractItemView.SingleSelection
+            selmode = QtWidgets.QAbstractItemView.ExtendedSelection
         else:
-            selmode = QAbstractItemView.SingleSelection
+            selmode = QAbstractItemView.ExtendedSelection
         self.tableView.setSelectionMode(selmode)
         self.tableView.setSortingEnabled(True)
         self.tableView.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
