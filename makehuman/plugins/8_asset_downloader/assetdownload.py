@@ -77,7 +77,7 @@ class AssetDownloadTaskView(gui3d.TaskView):
         self._setupTable()
         self._setupDetails()
 
-        self.currentlySelectedRemoteAsset = None
+        self.currentlySelectedRemoteAsset = []
         self.isShowingDetails = False
 
     def onShow(self, event):
@@ -239,7 +239,7 @@ class AssetDownloadTaskView(gui3d.TaskView):
         self.tableView.resizeColumnsToContents()
 
         self.hasFilter = True
-        self.currentlySelectedRemoteAsset = None
+        self.currentlySelectedRemoteAsset.clear()
         self.thumbnail.setPixmap(QtGui.QPixmap(os.path.abspath(self.notfound)))
 
         self.tableView.show()
@@ -286,12 +286,12 @@ class AssetDownloadTaskView(gui3d.TaskView):
             self.btnDetails.setText("View details")
             return
 
-        if self.currentlySelectedRemoteAsset is None:
+        if 0 == len(self.currentlySelectedRemoteAsset):
             self.log.debug("No asset is selected")
             return
 
-        title = self.currentlySelectedRemoteAsset.getTitle()
-        self.log.debug("Request details for asset with title",title)
+        titles = ', '.join([asset.getTitle() for asset in self.currentlySelectedRemoteAsset])
+        self.log.debug("Request details for asset with titles: ", titles)
 
         self.tableView.hide()
         self.detailsPanel.show()
@@ -308,14 +308,15 @@ class AssetDownloadTaskView(gui3d.TaskView):
         if not self.hasFilter:
             self.log.debug("Table is empty")
 
-        if self.currentlySelectedRemoteAsset is None:
+        if 0 == len(self.currentlySelectedRemoteAsset):
             self.log.debug("No asset is selected")
             return
 
-        title = self.currentlySelectedRemoteAsset.getTitle()
-        self.log.debug("Request download of asset with title",title)
+        titles = ', '.join([asset.getTitle() for asset in self.currentlySelectedRemoteAsset])
+        self.log.debug("Request download of asset with title",titles)
 
-        self.assetdb.downloadItem(self.syncBox,self.currentlySelectedRemoteAsset,self._downloadItemFinished)
+        # TODO: [multi-asset-selection] hard-coded references to selected asset 'head'.
+        self.assetdb.downloadItem(self.syncBox, self.currentlySelectedRemoteAsset[0], self._downloadItemFinished)
 
     def _downloadItemFinished(self, code=0, file=None):
         if code > 0:
@@ -411,13 +412,15 @@ class AssetDownloadTaskView(gui3d.TaskView):
 
     def _onBtnDownloadScreenshotClick(self):
         self.log.debug("Download screenshot")
-        remoteAsset = self.currentlySelectedRemoteAsset
+        # TODO: [multi-asset-selection] hard-coded references to selected asset 'head'.
+        remoteAsset = self.currentlySelectedRemoteAsset[0]
         tups = remoteAsset.getDownloadTuples(ignoreExisting=True, onlyMeta=True, excludeThumb=True, excludeScreenshot=False)
         self.screenshotDt = DownloadTask(self, tups, self._afterScreenshotDownloaded)
 
     def _afterScreenshotDownloaded(self, code=0, file=None):
         self.log.debug("Downloaded")
-        remoteAsset = self.currentlySelectedRemoteAsset
+        # TODO: [multi-asset-selection] hard-coded references to selected asset 'head'.
+        remoteAsset = self.currentlySelectedRemoteAsset[0]
         render = remoteAsset.getScreenshotPath()
 
         if render is not None and render != "" and os.path.exists(render):
@@ -472,8 +475,9 @@ class AssetDownloadTaskView(gui3d.TaskView):
         if not self.hasFilter:
             return
 
-        currentRow = None
+        self.currentlySelectedRemoteAsset.clear()
 
+        currentRow = None
         indexes = self.tableView.selectionModel().selectedRows()
         for index in sorted(indexes):
             currentRow = index
@@ -510,7 +514,7 @@ class AssetDownloadTaskView(gui3d.TaskView):
 
         self.thumbnail.setGeometry(0, 0, 128, 128)
 
-        self.currentlySelectedRemoteAsset = remoteAsset
+        self.currentlySelectedRemoteAsset.append(remoteAsset)
 
         self.detailsName.setText("<h1>" + remoteAsset.getTitle() + "</h1>")
         self.detailsDesc.setText("<p>" + remoteAsset.getDescription() + "</p>")
