@@ -476,66 +476,67 @@ class AssetDownloadTaskView(gui3d.TaskView):
             return
 
         self.currentlySelectedRemoteAsset.clear()
-
-        currentRow = None
         indexes = self.tableView.selectionModel().selectedRows()
         for index in sorted(indexes):
-            currentRow = index
+            self.log.debug("Currently selected index", index)
 
-        if currentRow is None:
-            self.log.debug("No row is selected")
-            return
+            mappedRow = self.proxymodel.mapToSource(index)
+            self.log.debug("Currently selected mapped row", mappedRow)
 
-        self.log.debug("Currently selected row", currentRow)
+            currentRow = mappedRow.row()
+            self.log.debug("Currently selected mapped row index", currentRow)
+            self.log.spam("Currently selected row data", self.data[currentRow])
 
-        currentRow = self.proxymodel.mapToSource(currentRow)
+            assetId   = int(self.data[currentRow][0])
+            self.log.debug("Currently selected asset id", assetId)
 
-        self.log.debug("Currently selected mapped row", currentRow)
+            assetType = str(self.cbxTypes.getCurrentItem())
+            remoteAsset = self.assetdb.remoteAssets[assetType][assetId]
+            self.currentlySelectedRemoteAsset.append(remoteAsset)
 
-        currentRow = currentRow.row()
+        # Update the asset description box
+        self._onRemoteAssetsSelected()
 
-        self.log.debug("Currently selected mapped row index", currentRow)
 
-        self.log.spam("Currently selected row data", self.data[currentRow])
-
-        assetId = int(self.data[currentRow][0])
-        assetType = str(self.cbxTypes.getCurrentItem())
-
-        self.log.debug("Currently selected asset id", assetId)
-
-        remoteAsset = self.assetdb.remoteAssets[assetType][assetId]
-
-        thumbPath = remoteAsset.getThumbPath()
-
-        if thumbPath is not None:
-            self.thumbnail.setPixmap(QtGui.QPixmap(os.path.abspath(thumbPath)))
-        else:
-            self.log.debug("Asset has no thumbnail")
-
-        self.thumbnail.setGeometry(0, 0, 128, 128)
-
-        self.currentlySelectedRemoteAsset.append(remoteAsset)
-
-        self.detailsName.setText("<h1>" + remoteAsset.getTitle() + "</h1>")
-        self.detailsDesc.setText("<p>" + remoteAsset.getDescription() + "</p>")
-
-        extras = "<br /><br /><tt>"
-        extras = extras + "<b>Author........: </b>" + remoteAsset.getAuthor() + "<br />"
-        extras = extras + "<b>License.......: </b>" + remoteAsset.getLicense() + "<br />"
-        extras = extras + "<b>Last changed..: </b>" + remoteAsset.getChanged() + "<br />"
-
-        extras = extras + "</tt>"
-        self.detailsExtras.setText(extras)
-
-        render = remoteAsset.getScreenshotPath()
-
-        if render is not None and render != "" and os.path.exists(render):
-            self.detailsRender.setPixmap(QtGui.QPixmap(os.path.abspath(render)))
-            self.detailsRender.setGeometry(0, 0, 800, 600)
+    def _onRemoteAssetsSelected(self):
+        nbSelectedAssets = len(self.currentlySelectedRemoteAsset)
+        if nbSelectedAssets > 1:
+            # More than one asset is selected, we cannot display a meaningful
+            # information box.
+            self.detailsName.setText('<h1>{0} assets selected</h1>'.format(nbSelectedAssets))
+            self.detailsDesc.setText('<p></p>')
+            self.detailsExtras.setText('<br/>')
+            self.thumbnail.setGeometry(0, 0, 128, 128)
+            self.detailsRender.setPixmap(QtGui.QPixmap(mhapi.locations.getSystemDataPath("notfound.thumb")))
             self.btnDownloadScreenshot.hide()
         else:
-            self.detailsRender.setPixmap(QtGui.QPixmap(mhapi.locations.getSystemDataPath("notfound.thumb")))
-            self.btnDownloadScreenshot.show()
+            remoteAsset = self.currentlySelectedRemoteAsset[0]
+            thumbPath = remoteAsset.getThumbPath()
+            if thumbPath is not None:
+                self.thumbnail.setPixmap(QtGui.QPixmap(os.path.abspath(thumbPath)))
+            else:
+                self.log.debug("Asset has no thumbnail")
+
+            self.thumbnail.setGeometry(0, 0, 128, 128)
+
+            self.detailsName.setText("<h1>" + remoteAsset.getTitle() + "</h1>")
+            self.detailsDesc.setText("<p>" + remoteAsset.getDescription() + "</p>")
+
+            extras = "<br /><br /><tt>"
+            extras = extras + "<b>Author........: </b>" + remoteAsset.getAuthor() + "<br />"
+            extras = extras + "<b>License.......: </b>" + remoteAsset.getLicense() + "<br />"
+            extras = extras + "<b>Last changed..: </b>" + remoteAsset.getChanged() + "<br />"
+            extras = extras + "</tt>"
+            self.detailsExtras.setText(extras)
+
+            render = remoteAsset.getScreenshotPath()
+            if render is not None and render != "" and os.path.exists(render):
+                self.detailsRender.setPixmap(QtGui.QPixmap(os.path.abspath(render)))
+                self.detailsRender.setGeometry(0, 0, 800, 600)
+                self.btnDownloadScreenshot.hide()
+            else:
+                self.detailsRender.setPixmap(QtGui.QPixmap(mhapi.locations.getSystemDataPath("notfound.thumb")))
+                self.btnDownloadScreenshot.show()
 
 
     def showMessage(self,message,title="Information"):
