@@ -138,8 +138,7 @@ class ModifierSlider(gui.Slider):
 
 
     def onChange(self, value):
-        #G.app.callAsync(self._onChange)
-        pass
+        G.app.callAsync(self._onChange)
 
     def _onChange(self):
         import humanmodifier
