@@ -370,6 +370,7 @@ class AssetDownloadTaskView(gui3d.TaskView):
                         + "with the asset on the server, and it should probably be reported to the author of the asset, " \
                         + "possibly as a comment on the asset page."
                 self.showMessage(msg)
+                self._downloadItems(nbDownloads, nextDownloads)
             else:
                 self._downloadItems(nbDownloads, nextDownloads)
         self.assetdb.downloadItem(self.syncBox, toDownloads[0], onDownloadItemFinished)
